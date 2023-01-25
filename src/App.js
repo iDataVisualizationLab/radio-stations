@@ -1,9 +1,9 @@
-
 import './App.css';
-import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import Globe from 'react-globe.gl'
 import * as d3 from 'd3'
 import indexBy from "index-array-by";
+import {Backdrop, CircularProgress} from '@mui/material';
 import RG_stations_listed from "./data/Jan_24_2023/stations_listed.csv"
 import RG_locations_listed from "./data/Jan_24_2023/locations_listed.csv"
 import RG_metadata from "./data/Jan_24_2023/metadata.csv"
@@ -26,7 +26,7 @@ const weightColor = d3.scaleSequentialSqrt(d3.interpolateYlOrRd)
 const colorsCategory = (function(otherColor="#454545"){
     const scale = d3.scaleOrdinal(colorArr);
     let master = (val)=>{
-        if ((!val)||(val==='')||(val.trim()===''))
+        if ((!val)||(val==='')||(val.trim===''))
             return 'black'
         const domain = scale.domain();
         if (domain.find(d=>d===val)|| (domain.length<TOP))
@@ -55,6 +55,7 @@ function App() {
     const [hoverArc, setHoverArc] = useState();
     const [selectPoint, setSelectPoint] = useState();
     const [currentSequnce,setCurrentSequnce] = useState(0);
+    const [isPending,setIsPending] = useState(true);
 
     function handleData(stationData, locationData, metaData) {
         const groupByLocation = d3.groups(stationData, d => d["city_id"]);
@@ -89,7 +90,7 @@ function App() {
                 values: d[1]
             }
         }).sort((a, b) => b.count - a.count);
-        debugger
+
         contriesScale.domain(d3.extent(constries, d => d.count));
 
         const genre = d3.groups(metaData, d => d["station_genre"]).map(d => {
@@ -131,48 +132,51 @@ function App() {
     }
 
     useEffect(() => {
-        // load data
-        Promise.all([
-            d3.csv(RG_stations_listed),
-            d3.csv(RG_locations_listed),
-            d3.csv(RG_metadata),
-            // d3.csv(RG_streamDetail),
-        ]).then(([stationData,locationData,metaData]) => {
-            const locationDataMap = {};
-            locationData.forEach(d=>{
-                d.lat = (+d.longitude);
-                d.long = (+d.latitude);
-                delete  d.longitude;
-                delete  d.latitude;
-                locationDataMap[d['city_id']] = d;
-            });
-            let stationDataMap = {};
-            stationData.forEach(d=>{
-                d.lat = locationDataMap[d['city_id']].lat;
-                d.long = locationDataMap[d['city_id']].long;
-                d.country = locationDataMap[d['city_id']].country;
-                d.city = locationDataMap[d['city_id']].city;
-                stationDataMap[d['station_id']] = d;
-            });
+            console.time('Load and process data');
+            // load data
+            Promise.all([
+                d3.csv(RG_stations_listed),
+                d3.csv(RG_locations_listed),
+                d3.csv(RG_metadata),
+                // d3.csv(RG_streamDetail),
+            ]).then(([stationData, locationData, metaData]) => {
+                const locationDataMap = {};
+                locationData.forEach(d => {
+                    d.lat = (+d.longitude);
+                    d.long = (+d.latitude);
+                    delete d.longitude;
+                    delete d.latitude;
+                    locationDataMap[d['city_id']] = d;
+                });
+                let stationDataMap = {};
+                stationData.forEach(d => {
+                    d.lat = locationDataMap[d['city_id']].lat;
+                    d.long = locationDataMap[d['city_id']].long;
+                    d.country = locationDataMap[d['city_id']].country;
+                    d.city = locationDataMap[d['city_id']].city;
+                    stationDataMap[d['station_id']] = d;
+                });
 
-            // let streamDetailMap = {};
-            // streamDetail.forEach(s=>{
-            //     streamDetailMap[s['stream_detail_id']] = s;
-            // })
-            metaData.forEach((d)=>{
-                d.station_genre = stationDataMap[d['station_id']].station_genre
-                // if (d.stream_genre==="(null)")
-                //     d.stream_genre = "unspecified";
-                // if (d.stream_genre==="top40")
-                //     d.stream_genre="top 40";
-                // if (d.stream_genre==="varios")
-                //     d.stream_genre="various";
-            })
-            // const rawData = {stationData,locationData,metaData:metaData.filter(d=>d.city!=='')};
-            const rawData = {stationData,locationData,metaData};
-            filterdata(rawData);
-            globeEl.current.pointOfView(MAP_CENTERs[0], 4000)
-        });
+                // let streamDetailMap = {};
+                // streamDetail.forEach(s=>{
+                //     streamDetailMap[s['stream_detail_id']] = s;
+                // })
+                metaData.forEach((d) => {
+                    d.station_genre = stationDataMap[d['station_id']].station_genre
+                    // if (d.stream_genre==="(null)")
+                    //     d.stream_genre = "unspecified";
+                    // if (d.stream_genre==="top40")
+                    //     d.stream_genre="top 40";
+                    // if (d.stream_genre==="varios")
+                    //     d.stream_genre="various";
+                })
+                // const rawData = {stationData,locationData,metaData:metaData.filter(d=>d.city!=='')};
+                const rawData = {stationData, locationData, metaData};
+                filterdata(rawData);
+                console.timeEnd('Load and process data');
+                setIsPending(false);
+                globeEl.current.pointOfView(MAP_CENTERs[0], 4000)
+            });
     }, []);
     const filterdata = useCallback((_rawData=rawData)=>{
         let stationData = _rawData.stationData.slice();
@@ -195,7 +199,7 @@ function App() {
         setcity(city)
     },[filterKeys,rawData])
     useEffect(()=>{
-        if (globeEl.current) {
+        if (globeEl.current && !isPending) {
             if (currentSequnce < MAP_CENTERs.length) {
                 const interval = setTimeout(() => {
                     globeEl.current.pointOfView(MAP_CENTERs[currentSequnce], 4000)
@@ -378,6 +382,13 @@ function App() {
                 {/*Radio Garden  <img src={ttulogo} width={"70px"} alt="Logo" />*/}
             </div>
         </div>
+        {isPending&&<Backdrop
+            sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}
+            open={true}
+        >
+            <h1>Rendering...</h1>
+            <CircularProgress color="inherit"/>
+        </Backdrop>}
     </div>;
 }
 

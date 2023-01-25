@@ -1,23 +1,39 @@
-import React, { useEffect, useRef } from "react";
+import React, {useCallback, useEffect, useRef} from "react";
 import * as d3 from "d3";
 
 const Pie = ({top=10,...props}) => {
     const ref = useRef(null);
     const divref = useRef(null);
     const cache = useRef(props.data);
-    const createPie = d3
+    const createPie = useCallback((d)=>{
+        const prim = d3
         .pie()
         .value(props.valueKey??(d => d.value))
-        .sort(null);
+        .sort(null)(d);
+        if (d.length>top) {
+            const rtop = prim.slice(0, top);
+            const lastI = prim[prim.length - 1];
+            rtop.push({
+                endAngle: lastI.endAngle,
+                index: top,
+                padAngle: lastI.padAngle,
+                startAngle: prim[top].startAngle,
+                value: d3.sum(prim.slice(top, prim.length), d => d.value)
+            })
+            return rtop;
+        }else
+            return prim;
+    },[props.valueKey,top]);
     const createArc = d3
         .arc()
         .innerRadius(props.innerRadius)
         .outerRadius(props.outerRadius);
     const colors = props.colors??d3.scaleOrdinal(d3.schemeCategory10);
-    const format = d3.format(",d");
+    const format = (d)=>d>=1000000?`${d3.format(",d")(Math.floor(d/1000000))}M`:d3.format(",d")(d);
 
     useEffect(
         () => {
+            debugger
             const data = createPie(props.data);
             const prevData = createPie(cache.current);
             const group = d3.select(ref.current);
@@ -57,7 +73,7 @@ const Pie = ({top=10,...props}) => {
 
             path
                 .attr("class", "arc")
-                .attr("fill", (d, i) => colors(d,i))
+                .attr("fill", (d, i) => d.data?colors(d,i):'#575757')
                 .transition()
                 .attrTween("d", arcTween);
 
