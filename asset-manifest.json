@@ -1,18 +1,18 @@
 {
   "files": {
     "main.css": "/radio-stations/static/css/main.13d408c3.css",
-    "main.js": "/radio-stations/static/js/main.b557d297.js",
+    "main.js": "/radio-stations/static/js/main.b47c953a.js",
     "static/js/787.11792b88.chunk.js": "/radio-stations/static/js/787.11792b88.chunk.js",
     "static/media/metadata.csv": "/radio-stations/static/media/metadata.508f1effc7264ccc4778.csv",
     "static/media/stations_listed.csv": "/radio-stations/static/media/stations_listed.62a01fcccd6c8d8910be.csv",
     "static/media/locations_listed.csv": "/radio-stations/static/media/locations_listed.f85c1cdb7238c3b3b584.csv",
     "index.html": "/radio-stations/index.html",
     "main.13d408c3.css.map": "/radio-stations/static/css/main.13d408c3.css.map",
-    "main.b557d297.js.map": "/radio-stations/static/js/main.b557d297.js.map",
+    "main.b47c953a.js.map": "/radio-stations/static/js/main.b47c953a.js.map",
     "787.11792b88.chunk.js.map": "/radio-stations/static/js/787.11792b88.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.13d408c3.css",
-    "static/js/main.b557d297.js"
+    "static/js/main.b47c953a.js"
   ]
 }
