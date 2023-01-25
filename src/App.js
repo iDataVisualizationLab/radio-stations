@@ -4,13 +4,11 @@ import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
 import Globe from 'react-globe.gl'
 import * as d3 from 'd3'
 import indexBy from "index-array-by";
-import RG_stations_listed from "./data/RG_stations_listed.csv"
-import RG_locations_listed from "./data/RG_locations_listed.csv"
-import RG_metadata from "./data/RG_metadata.csv"
-import ttulogo from "./ttu.png"
-import SpaceDust from "./Components/SpaceDust"
+import RG_stations_listed from "./data/Jan_24_2023/stations_listed.csv"
+import RG_locations_listed from "./data/Jan_24_2023/locations_listed.csv"
+import RG_metadata from "./data/Jan_24_2023/metadata.csv"
+// import RG_streamDetail from "./data/Jan_24_2023/streamDetail.csv"
 import Pie from "./Components/Piechart";
-import {flatten} from "lodash"
 
 // [{ lat: 19.6, lng: 80, altitude: 0.6 },{ lat: 50, lng: 60, altitude: 0.4 },{ lat: 31.3037101, lng: -89.29276214, altitude: 0.4 },{ lat: 33.5842591, lng: -101.8804709, altitude: 0.6 }]
 // const MAP_CENTERs = [{ lat: 87.5842591, lng: -70.8804709, altitude: 1.8 }];
@@ -28,7 +26,7 @@ const weightColor = d3.scaleSequentialSqrt(d3.interpolateYlOrRd)
 const colorsCategory = (function(otherColor="#454545"){
     const scale = d3.scaleOrdinal(colorArr);
     let master = (val)=>{
-        if ((!val)||(val==='')||(val.trim===''))
+        if ((!val)||(val==='')||(val.trim()===''))
             return 'black'
         const domain = scale.domain();
         if (domain.find(d=>d===val)|| (domain.length<TOP))
@@ -40,6 +38,8 @@ const colorsCategory = (function(otherColor="#454545"){
     master.range = scale.range;
     return master;
 })();
+
+
 function App() {
     const globeEl = useRef();
     // const [filterKeys, setfilterKeys] = useState({country:{"United States":true,"Brazil":true,"United Kingdom":true,"Spain":true,"France":true,"Italy":true,"Argentina":true,"Germany":true,"Colombia":true,"Mexico":true,"Canada":true,"Netherlands":true,"Russia":true,"Greece":true,"Australia":true}});
@@ -62,18 +62,19 @@ function App() {
         arcThickScale.domain(range);
         weightColor.domain([0, range[1]])
         // route
-        const byLocName = indexBy(locationData, 'id', false);
+        const byLocName = indexBy(locationData, 'city_id', false);
         const metabyLocName = indexBy(metaData, 'city_id', true);
 
         const locs = groupByLocation.map(d => {
             const meta = metabyLocName[d[0]]??[];
             return {
                 ...byLocName[d[0]],
-                "title": `${byLocName[d[0]].title} - ${byLocName[d[0]].country}`,
+                "title": `${byLocName[d[0]].city} - ${byLocName[d[0]].country}`,
                 count: d[1].length,
                 values: d[1],
-                genre: d3.groups(meta,d=>d.stream_genre).map(d=>{d.title=d[0];d.count=d[1].length;return d}),
-                city: d3.groups(meta,d=>d.city).map(d=>{d.title=d[0];d.count=d[1].length;return d}),
+                genre: d3.groups(meta,d=>d.station_genre).map(d=>{d.title=d[0];d.count=d[1].length;return d}),
+                // city: d3.groups(meta,d=>d.city).map(d=>{d.title=d[0];d.count=d[1].length;return d}),
+                city: [[byLocName[d[0]].city,meta]].map(d=>{d.title=d[0];d.count=d[1].length;return d}),
             }
         });
         locs.sort((a, b) => b.count - a.count);
@@ -88,10 +89,10 @@ function App() {
                 values: d[1]
             }
         }).sort((a, b) => b.count - a.count);
-
+        debugger
         contriesScale.domain(d3.extent(constries, d => d.count));
 
-        const genre = d3.groups(metaData, d => d["stream_genre"]).map(d => {
+        const genre = d3.groups(metaData, d => d["station_genre"]).map(d => {
             return {
                 "title": d[0],
                 count: d[1].length,
@@ -120,6 +121,8 @@ function App() {
         [0,1,2,3,0].forEach(i=> {
             if (!MAP_CENTERs[order])
                 MAP_CENTERs[order] = {lat:0,lng:0,altitude:1.8}
+            if (!constries[i])
+                debugger
             MAP_CENTERs[order].lat = constries[i].lat;
             MAP_CENTERs[order].lng = constries[i].long;
             order++
@@ -133,24 +136,37 @@ function App() {
             d3.csv(RG_stations_listed),
             d3.csv(RG_locations_listed),
             d3.csv(RG_metadata),
+            // d3.csv(RG_streamDetail),
         ]).then(([stationData,locationData,metaData]) => {
+            const locationDataMap = {};
             locationData.forEach(d=>{
-                d.lat = (+d.geo_2);
-                d.long = (+d.geo_1);
-                delete  d.geo_1;
-                delete  d.geo_2;
-            });
-            stationData.forEach(d=>{
                 d.lat = (+d.longitude);
                 d.long = (+d.latitude);
+                delete  d.longitude;
+                delete  d.latitude;
+                locationDataMap[d['city_id']] = d;
             });
+            let stationDataMap = {};
+            stationData.forEach(d=>{
+                d.lat = locationDataMap[d['city_id']].lat;
+                d.long = locationDataMap[d['city_id']].long;
+                d.country = locationDataMap[d['city_id']].country;
+                d.city = locationDataMap[d['city_id']].city;
+                stationDataMap[d['station_id']] = d;
+            });
+
+            // let streamDetailMap = {};
+            // streamDetail.forEach(s=>{
+            //     streamDetailMap[s['stream_detail_id']] = s;
+            // })
             metaData.forEach((d)=>{
-                if (d.stream_genre==="(null)")
-                    d.stream_genre = "unspecified";
-                if (d.stream_genre==="top40")
-                    d.stream_genre="top 40";
-                if (d.stream_genre==="varios")
-                    d.stream_genre="various";
+                d.station_genre = stationDataMap[d['station_id']].station_genre
+                // if (d.stream_genre==="(null)")
+                //     d.stream_genre = "unspecified";
+                // if (d.stream_genre==="top40")
+                //     d.stream_genre="top 40";
+                // if (d.stream_genre==="varios")
+                //     d.stream_genre="various";
             })
             // const rawData = {stationData,locationData,metaData:metaData.filter(d=>d.city!=='')};
             const rawData = {stationData,locationData,metaData};

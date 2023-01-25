@@ -102,9 +102,9 @@ const Pie = ({top=10,...props}) => {
                 .style('white-space', "nowrap")
                 .style('overflow', "hidden")
                 .merge(divWithUpdate.select("div.title"))
-                .style('opacity',d=>(d.data.title.trim()!=='')?null:0.3)
-                .text(d=>d.data.title.trim()!==''?d.data.title:"Not listed")
-                .attr('title',d=>d.data.title.trim()!==''?d.data.title:"Not listed");
+                .style('opacity',d=>((d.data.title??'').trim()!=='')?null:0.3)
+                .text(d=>(d.data.title??'').trim()!==''?d.data.title:"Not listed")
+                .attr('title',d=>(d.data.title??'').trim()!==''?d.data.title:"Not listed");
             const processnew = divWithUpdate
                 .append("div")
                 .attr('class','process')

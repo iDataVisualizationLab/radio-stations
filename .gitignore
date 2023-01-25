@@ -128,3 +128,6 @@ dist
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# large data
+/src/convertdata/MIRAGE_MC.csv
