@@ -33,7 +33,6 @@ const Pie = ({top=10,...props}) => {
 
     useEffect(
         () => {
-            debugger
             const data = createPie(props.data);
             const prevData = createPie(cache.current);
             const group = d3.select(ref.current);

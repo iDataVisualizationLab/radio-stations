@@ -2,11 +2,11 @@ import './App.css';
 import React, {useState, useEffect, useRef, useCallback} from 'react';
 import Globe from 'react-globe.gl'
 import * as d3 from 'd3'
-import indexBy from "index-array-by";
 import {Backdrop, CircularProgress} from '@mui/material';
 import RG_stations_listed from "./data/Jan_24_2023/stations_listed.csv"
 import RG_locations_listed from "./data/Jan_24_2023/locations_listed.csv"
-import RG_metadata from "./data/Jan_24_2023/metadata.csv"
+// import RG_metadata from "./data/Jan_24_2023/metadata.csv"
+import RG_metadata from "./data/Jan_24_2023/metadata_removetime.csv"
 // import RG_streamDetail from "./data/Jan_24_2023/streamDetail.csv"
 import Pie from "./Components/Piechart";
 
@@ -63,19 +63,20 @@ function App() {
         arcThickScale.domain(range);
         weightColor.domain([0, range[1]])
         // route
-        const byLocName = indexBy(locationData, 'city_id', false);
-        const metabyLocName = indexBy(metaData, 'city_id', true);
+        const byLocName = d3.group(locationData, d=>d['city_id']);
+        const metabyLocName = d3.group(metaData,d=>d['city_id']);
 
         const locs = groupByLocation.map(d => {
-            const meta = metabyLocName[d[0]]??[];
+            const meta = metabyLocName.get(d[0])??[];
+            const locinfo = (byLocName.get(d[0])??[])[0]??{};
             return {
-                ...byLocName[d[0]],
-                "title": `${byLocName[d[0]].city} - ${byLocName[d[0]].country}`,
+                ...locinfo,
+                "title": `${locinfo.city} - ${locinfo.country}`,
                 count: d[1].length,
                 values: d[1],
                 genre: d3.groups(meta,d=>d.station_genre).map(d=>{d.title=d[0];d.count=d[1].length;return d}),
                 // city: d3.groups(meta,d=>d.city).map(d=>{d.title=d[0];d.count=d[1].length;return d}),
-                city: [[byLocName[d[0]].city,meta]].map(d=>{d.title=d[0];d.count=d[1].length;return d}),
+                city: [[locinfo.city,meta]].map(d=>{d.title=d[0];d.count=d[1].length;return d}),
             }
         });
         locs.sort((a, b) => b.count - a.count);
@@ -122,17 +123,18 @@ function App() {
         [0,1,2,3,0].forEach(i=> {
             if (!MAP_CENTERs[order])
                 MAP_CENTERs[order] = {lat:0,lng:0,altitude:1.8}
-            if (!constries[i])
-                debugger
             MAP_CENTERs[order].lat = constries[i].lat;
             MAP_CENTERs[order].lng = constries[i].long;
             order++
         })
+        console.log('constries length: ',constries.length);
+        console.log('location length: ',locs.length);
         return {locs, constries,genre,city};
     }
 
     useEffect(() => {
             console.time('Load and process data');
+            console.time('-Load data-');
             // load data
             Promise.all([
                 d3.csv(RG_stations_listed),
@@ -140,6 +142,8 @@ function App() {
                 d3.csv(RG_metadata),
                 // d3.csv(RG_streamDetail),
             ]).then(([stationData, locationData, metaData]) => {
+                console.timeEnd('-Load data-');
+                console.time('-Correct data-');
                 const locationDataMap = {};
                 locationData.forEach(d => {
                     d.lat = (+d.longitude);
@@ -172,7 +176,10 @@ function App() {
                 })
                 // const rawData = {stationData,locationData,metaData:metaData.filter(d=>d.city!=='')};
                 const rawData = {stationData, locationData, metaData};
+                console.timeEnd('-Correct data-');
+                console.time('-filterdata-');
                 filterdata(rawData);
+                console.timeEnd('-filterdata-');
                 console.timeEnd('Load and process data');
                 setIsPending(false);
                 globeEl.current.pointOfView(MAP_CENTERs[0], 4000)
@@ -192,7 +199,9 @@ function App() {
                 metaData = metaData.filter(d=>filterKeys.country[d.genre]);
             }
         }
+        console.time('--handleData--');
         const {locs, constries, genre,city} = handleData(stationData, locationData,metaData);
+        console.timeEnd('--handleData--');
         setLocs(locs);
         setConstries(constries);
         setGenre(genre)

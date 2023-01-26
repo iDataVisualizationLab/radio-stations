@@ -18,7 +18,7 @@ d3.csv(Testdata).then(d=>{
 
     const stationKeys = ['city_id','utcOffset','station','station_id','url','station_name','station_description','station_genre','station_url'];
     const locationKeys = ['city_id','latitude','longitude','city','country'];
-    const streamKeys = ['city_id', 'station_id', 'time_station', 'stream_detail_id'];
+    const streamKeys = ['city_id', 'station_id', 'stream_detail_id'];//['city_id', 'station_id', 'time_station', 'stream_detail_id'];
     // const station_id = d3.groups(d,d=>d['stream_title']);//'stream_codec', 'stream_bitrate', 'stream_framerate', 'stream_channels'
     // const u = station_id.map(d=>d3.groups(d[1],d=>['stream_title', 'stream_artist', 'stream_song'].map(k=>d[k]).join(',')))
 
