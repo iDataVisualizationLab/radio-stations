@@ -1,5 +1,5 @@
 import './App.css';
-import React, {useState, useEffect, useRef, useCallback} from 'react';
+import React, {useState, useEffect, useRef, useCallback, useMemo} from 'react';
 import Globe from 'react-globe.gl'
 import * as d3 from 'd3'
 import {Backdrop, CircularProgress} from '@mui/material';
@@ -12,7 +12,7 @@ import Pie from "./Components/Piechart";
 
 // [{ lat: 19.6, lng: 80, altitude: 0.6 },{ lat: 50, lng: 60, altitude: 0.4 },{ lat: 31.3037101, lng: -89.29276214, altitude: 0.4 },{ lat: 33.5842591, lng: -101.8804709, altitude: 0.6 }]
 // const MAP_CENTERs = [{ lat: 87.5842591, lng: -70.8804709, altitude: 1.8 }];
-const MAP_CENTERs = [{ lat: -92.52824601944323, lng: 38.31079101844495, altitude: 1.8 },{ lat: 51.58421865, lng: 45.9571029, altitude: 1.8 },{ lat: 31.3037101, lng: -89.29276214, altitude: 1.8 },{ lat: 33.5842591, lng: -101.8804709, altitude: 1.8 }];
+// const MAP_CENTERs = [{ lat: -92.52824601944323, lng: 38.31079101844495, altitude: 1.8 },{ lat: 51.58421865, lng: 45.9571029, altitude: 1.8 },{ lat: 31.3037101, lng: -89.29276214, altitude: 1.8 },{ lat: 33.5842591, lng: -101.8804709, altitude: 1.8 }];
 // const MAP_CENTER = { lat: 33.5842591, lng: -101.8804709, altitude: 0.6 };
 const OPACITY = 0.3;
 const RING_PROPAGATION_SPEED = 1; // deg/sec
@@ -21,23 +21,10 @@ const colorArr = ['#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c', '#98df8
 
 const arcThickScale = d3.scaleLinear().range([0.01,0.7]);
 const contriesScale = d3.scaleLinear().range([0.1,0.7]);
-const weightColor = d3.scaleSequentialSqrt(d3.interpolateYlOrRd)
-    .domain([0, 1e7]);
-const colorsCategory = (function(otherColor="#454545"){
-    const scale = d3.scaleOrdinal(colorArr);
-    let master = (val)=>{
-        if ((!val)||(val==='')||(val.trim===''))
-            return 'black'
-        const domain = scale.domain();
-        if (domain.find(d=>d===val)|| (domain.length<TOP))
-            return scale(val);
-        else
-            return otherColor
-    };
-    master.domain = scale.domain;
-    master.range = scale.range;
-    return master;
-})();
+// const weightColor = d3.scaleSequentialSqrt(d3.interpolateYlOrRd)
+//     .domain([0, 1e7]);
+
+
 
 
 function App() {
@@ -56,15 +43,35 @@ function App() {
     const [selectPoint, setSelectPoint] = useState();
     const [currentSequnce,setCurrentSequnce] = useState(0);
     const [isPending,setIsPending] = useState(true);
+    const [MAP_CENTERs,setMAP_CENTERs] = useState([{ lat: -92.52824601944323, lng: 38.31079101844495, altitude: 1.8 },{ lat: 51.58421865, lng: 45.9571029, altitude: 1.8 },{ lat: 31.3037101, lng: -89.29276214, altitude: 1.8 },{ lat: 33.5842591, lng: -101.8804709, altitude: 1.8 }]);
+    const colorsCategory = useMemo(()=>{
+        return function(otherColor="#454545"){
+            const scale = d3.scaleOrdinal(colorArr);
+            let master = (val)=>{
+                if ((!val)||(val==='')||(val.trim===''))
+                    return 'black'
+                const domain = scale.domain();
+                if (domain.find(d=>d===val)|| (domain.length<TOP))
+                    return scale(val);
+                else
+                    return otherColor
+            };
+            master.domain = scale.domain;
+            master.range = scale.range;
+            return master;
+        }();
+    },[]);
 
     function handleData(stationData, locationData, metaData) {
         const groupByLocation = d3.groups(stationData, d => d["city_id"]);
         const range = d3.extent(groupByLocation, d => d[1].length);
         arcThickScale.domain(range);
-        weightColor.domain([0, range[1]])
+        // weightColor.domain([0, range[1]])
         // route
+        console.time('---group meta---')
         const byLocName = d3.group(locationData, d=>d['city_id']);
         const metabyLocName = d3.group(metaData,d=>d['city_id']);
+        console.timeEnd('---group meta---')
 
         const locs = groupByLocation.map(d => {
             const meta = metabyLocName.get(d[0])??[];
@@ -106,8 +113,8 @@ function App() {
         const city = d3.groups(stationData, d => d["city"]).map(d => {
             return {
                 "title": d[0],
-                long: d3.mean(d[1], e => e.longitude),
-                lat: d3.mean(d[1], e => e.latitude),
+                long: d3.mean(d[1], e => e.long),
+                lat: d3.mean(d[1], e => e.lat),
                 count: d[1].length,
                 values: d[1],
                 country: d[1][0].country,
@@ -122,14 +129,14 @@ function App() {
         let order = 0;
         [0,1,2,3,0].forEach(i=> {
             if (!MAP_CENTERs[order])
-                MAP_CENTERs[order] = {lat:0,lng:0,altitude:1.8}
+                MAP_CENTERs[order] = {lat:0,lng:0,altitude:1}
             MAP_CENTERs[order].lat = constries[i].lat;
             MAP_CENTERs[order].lng = constries[i].long;
             order++
         })
         console.log('constries length: ',constries.length);
         console.log('location length: ',locs.length);
-        return {locs, constries,genre,city};
+        return {locs, constries,genre,city,MAP_CENTERs};
     }
 
     useEffect(() => {
@@ -200,29 +207,45 @@ function App() {
             }
         }
         console.time('--handleData--');
-        const {locs, constries, genre,city} = handleData(stationData, locationData,metaData);
+        const {locs, constries, genre,city,MAP_CENTERs} = handleData(stationData, locationData,metaData);
         console.timeEnd('--handleData--');
         setLocs(locs);
         setConstries(constries);
-        setGenre(genre)
-        setcity(city)
-    },[filterKeys,rawData])
+        setGenre(genre);
+        setcity(city);
+        setMAP_CENTERs(MAP_CENTERs);
+        setCurrentSequnce(0);
+    },[filterKeys,rawData]);
+
+    const [timer,setTimer] = useState(null);
     useEffect(()=>{
-        if (globeEl.current && !isPending) {
+        if (globeEl.current) {
             if (currentSequnce < MAP_CENTERs.length) {
+
                 const interval = setTimeout(() => {
                     globeEl.current.pointOfView(MAP_CENTERs[currentSequnce], 4000)
                     setCurrentSequnce(currentSequnce + 1);
                 }, 4000);
+                setTimer(interval);
                 return () => {
                     clearInterval(interval);
                 };
             }
         }
-    },[currentSequnce])
-    function stopPlay(){
-        setCurrentSequnce(MAP_CENTERs.length)
-    }
+    },[currentSequnce,MAP_CENTERs])
+    const stopPlay = useCallback(()=>{
+        if (timer)
+            clearInterval(timer);
+        setCurrentSequnce(MAP_CENTERs.length);
+    },[timer]);
+
+    const zoomTo = useCallback((lng,lat)=>{
+        if (globeEl.current) {
+            stopPlay();
+            globeEl.current.pointOfView({ lat, lng, altitude: 0.8 }, 2000);
+        }
+    },[currentSequnce,stopPlay])
+
     return  <div
         className="App"
         style={{
@@ -346,6 +369,7 @@ function App() {
                         innerRadius={60}
                         outerRadius={100}
                         unit={'stations'}
+                        onClickItem={(d)=>{zoomTo(d.long,d.lat)}}
                     />
                 </div>
                 <div style={{width:'50%',height:'200px'}}>
@@ -362,6 +386,7 @@ function App() {
                         innerRadius={60}
                         outerRadius={100}
                         unit={'stations'}
+                        onClickItem={(d)=>{zoomTo(d.long,d.lat)}}
                     />
                 </div>
                 <div style={{width:'50%',height:'200px'}}>

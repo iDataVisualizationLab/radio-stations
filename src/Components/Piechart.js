@@ -1,7 +1,7 @@
-import React, {useCallback, useEffect, useRef} from "react";
+import React, {useCallback, useEffect, useMemo, useRef} from "react";
 import * as d3 from "d3";
 
-const Pie = ({top=10,...props}) => {
+const Pie = ({top=10,onClickItem,...props}) => {
     const ref = useRef(null);
     const divref = useRef(null);
     const cache = useRef(props.data);
@@ -28,8 +28,9 @@ const Pie = ({top=10,...props}) => {
         .arc()
         .innerRadius(props.innerRadius)
         .outerRadius(props.outerRadius);
-    const colors = props.colors??d3.scaleOrdinal(d3.schemeCategory10);
+    const colors = useMemo(()=>props.colors??d3.scaleOrdinal(d3.schemeCategory10),[props.colors]);
     const format = (d)=>d>=1000000?`${d3.format(",d")(Math.floor(d/1000000))}M`:d3.format(",d")(d);
+
 
     useEffect(
         () => {
@@ -106,7 +107,11 @@ const Pie = ({top=10,...props}) => {
                 .attr("class", "bar")
                 .style('width','100%')
                 .style('padding','1px')
-                .style('display',"flex");
+                .style('display',"flex")
+                if (onClickItem)
+                    divWithUpdate.on('click',(e,d)=> {
+                        onClickItem(d.data)
+                    });
             const name = divWithUpdate
                 .append("div")
                 .attr('class','title')
@@ -175,7 +180,7 @@ const Pie = ({top=10,...props}) => {
         }} className={"sc1"}>
 
         </div>
-            <h5 style={{marginTop:15,marginBottom:2}}>Total = {format(d3.sum(props.data.slice(0,top),d=>d.count))} {props.unit}</h5>
+            <h5 style={{marginTop:15,marginBottom:2}}>Top {top} total = {format(d3.sum(props.data.slice(0,top),d=>d.count))} {props.unit}</h5>
             {/*{props.data.slice(0,10).map(d=><div key={d['title']} style={{width:'100%', padding: '1px', display: "flex"}}*/}
             {/*>*/}
             {/*    <div style={{width:'30%', textAlign:"right",padding:'2px',textOverflow: "ellipsis",whiteSpace: "nowrap",overflow: "hidden"}}>{d['title']}</div>*/}
